@@ -41,7 +41,7 @@ class FSInfo:
     def __repr__(self):
         return f"FS type {self.fs_type} Start {hex(self.start)} Len {self.length} Page size {self.page_size} Block size {self.block_size}"
     # extract command supposed to be implemented by subclasses
-    def get_extract_cmd(self):
+    def get_extract_cmd(self, input_file, output_dir):
         raise NotImplementedError()
 
 class LittleFSInfo(FSInfo):
@@ -56,7 +56,7 @@ class LittleFSInfo(FSInfo):
     def __repr__(self): 
         return f"FS type {self.fs_type} Start {hex(self.start)} Len {self.length} Page size {self.page_size} Block size {self.block_size} Tool: {self.tool}"
     def get_extract_cmd(self, input_file, output_dir):
-        return f'"{self.tool}" -b {self.block_size} -p {self.page_size} --unpack "{output_dir}" "{input_file}"'
+        return [self.tool, "-b", str(self.block_size), "-p", str(self.page_size), "--unpack", output_dir, input_file]
 
 
 class SPIFFSInfo(FSInfo):
@@ -258,16 +258,16 @@ def download_fs(fs_info: FSInfo):
     fs_file = join(env["PROJECT_DIR"], f"downloaded_fs_{hex(fs_info.start)}_{hex(fs_info.length)}.bin")
     esptoolpy_flags = [
             "--chip", mcu,
-            "--port", '"' + env.subst("$UPLOAD_PORT") + '"',
+            "--port", env.subst("$UPLOAD_PORT"),
             "--baud",  env.subst("$UPLOAD_SPEED"),
             "--before", "default_reset",
             "--after", "hard_reset",
             "read_flash", 
             hex(fs_info.start),
             hex(fs_info.length),
-            '"' + fs_file + '"'
+            fs_file
     ]
-    esptoolpy_cmd = '"' + env["PYTHONEXE"]+ '"' + ' "' + esptoolpy + '" ' + " ".join(esptoolpy_flags)
+    esptoolpy_cmd = [env["PYTHONEXE"], esptoolpy] + esptoolpy_flags
     print("Executing flash download command.")
     print(esptoolpy_cmd)
     try:
